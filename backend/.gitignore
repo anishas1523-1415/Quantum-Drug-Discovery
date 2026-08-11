@@ -1,0 +1,22 @@
+venv/
+__pycache__/
+*.pyc
+.env
+users.db
+instance/
+.pytest_cache/
+
+# Runtime uploads are deleted immediately after processing (see
+# routes.py) and never persist, but the bundled sample datasets in
+# uploads/ are fixtures worth keeping in the repo for demo purposes.
+uploads/*
+!uploads/patient.csv
+!uploads/test_patient.csv
+!uploads/wdbc.data
+!uploads/breast+cancer+wisconsin+diagnostic.zip
+
+processed/
+uploads/*
+!uploads/.gitkeep
+processed/*
+!processed/.gitkeep

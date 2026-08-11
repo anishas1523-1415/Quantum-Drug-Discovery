@@ -1,0 +1,367 @@
+/* ==========================================================
+   Design tokens — dark quantum-lab theme
+   Combines glassmorphism (translucent, blurred panels) with
+   soft neumorphism (dual-shadow extruded controls) on a
+   deep-space gradient backdrop.
+   ========================================================== */
+
+:root {
+  --bg-0: #0a0e1a;
+  --bg-1: #0d1326;
+  --bg-2: #111a33;
+
+  --surface: #131b30;
+  --surface-raised: #16203a;
+
+  --glass-bg: rgba(255, 255, 255, 0.055);
+  --glass-bg-strong: rgba(255, 255, 255, 0.09);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-blur: 22px;
+
+  --text-hi: #eef1fb;
+  --text-mid: #b6bfda;
+  --text-low: #7c88ab;
+
+  --accent-cyan: #22d3ee;
+  --accent-violet: #8b5cf6;
+  --accent-gradient: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+
+  --success: #34d399;
+  --success-bg: rgba(52, 211, 153, 0.14);
+  --danger: #fb7185;
+  --danger-bg: rgba(251, 113, 133, 0.14);
+  --warning: #fbbf24;
+
+  --neu-light: rgba(255, 255, 255, 0.05);
+  --neu-dark: rgba(0, 0, 0, 0.55);
+
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+
+  --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 0 1px rgba(139, 92, 246, 0.25), 0 8px 24px rgba(139, 92, 246, 0.25);
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+  color: var(--text-hi);
+  background: var(--bg-0);
+}
+
+/* ---------------- App backdrop ---------------- */
+
+.app-shell {
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  background:
+    radial-gradient(60% 55% at 15% 10%, rgba(139, 92, 246, 0.22), transparent 60%),
+    radial-gradient(55% 50% at 85% 15%, rgba(34, 211, 238, 0.16), transparent 60%),
+    radial-gradient(70% 60% at 50% 100%, rgba(34, 211, 238, 0.10), transparent 60%),
+    linear-gradient(180deg, var(--bg-0), var(--bg-1) 45%, var(--bg-2));
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---------------- Glass surfaces ---------------- */
+
+.glass-panel {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  box-shadow: var(--shadow-soft);
+}
+
+.glass-panel-strong {
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  box-shadow: var(--shadow-soft);
+}
+
+/* ---------------- Neumorphic controls ---------------- */
+
+.neu-field {
+  position: relative;
+}
+
+.neu-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-mid);
+  margin-bottom: 8px;
+}
+
+.neu-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  box-shadow:
+    inset 4px 4px 8px var(--neu-dark),
+    inset -4px -4px 8px var(--neu-light);
+  transition: box-shadow 0.25s var(--ease);
+}
+
+.neu-input-wrap:focus-within {
+  box-shadow:
+    inset 3px 3px 7px var(--neu-dark),
+    inset -3px -3px 7px var(--neu-light),
+    0 0 0 2px rgba(34, 211, 238, 0.45);
+}
+
+.neu-input-wrap input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-hi);
+  font-size: 15px;
+  padding: 14px 16px;
+}
+
+.neu-input-wrap input::placeholder {
+  color: var(--text-low);
+}
+
+.neu-input-wrap .field-icon {
+  padding-left: 16px;
+  color: var(--text-low);
+  display: flex;
+}
+
+.neu-input-wrap .field-action {
+  background: none;
+  border: none;
+  color: var(--text-low);
+  cursor: pointer;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.neu-input-wrap .field-action:hover {
+  color: var(--text-hi);
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 12.5px;
+  margin-top: 6px;
+}
+
+/* ---------------- Buttons ---------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: transform 0.18s var(--ease), box-shadow 0.25s var(--ease), opacity 0.2s;
+  letter-spacing: 0.01em;
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  width: 100%;
+  color: #06111f;
+  background: var(--accent-gradient);
+  box-shadow: 0 10px 25px rgba(139, 92, 246, 0.35), 0 4px 10px rgba(34, 211, 238, 0.25);
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 14px 32px rgba(139, 92, 246, 0.45), 0 6px 14px rgba(34, 211, 238, 0.32);
+}
+
+.btn-ghost {
+  background: var(--surface);
+  color: var(--text-hi);
+  box-shadow:
+    5px 5px 10px var(--neu-dark),
+    -5px -5px 10px var(--neu-light);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  box-shadow:
+    3px 3px 7px var(--neu-dark),
+    -3px -3px 7px var(--neu-light);
+}
+
+.btn-danger-ghost {
+  background: var(--surface);
+  color: var(--danger);
+  box-shadow:
+    5px 5px 10px var(--neu-dark),
+    -5px -5px 10px var(--neu-light);
+}
+
+/* ---------------- Misc ---------------- */
+
+.divider-text {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-low);
+  font-size: 12.5px;
+  margin: 22px 0;
+}
+
+.divider-text::before,
+.divider-text::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--glass-border);
+}
+
+a.link {
+  color: var(--accent-cyan);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+a.link:hover {
+  text-decoration: underline;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(6, 17, 31, 0.25);
+  border-top-color: #06111f;
+  animation: spin 0.7s linear infinite;
+}
+
+.spinner-lg {
+  width: 34px;
+  height: 34px;
+  border-width: 3.5px;
+  border-color: rgba(255, 255, 255, 0.12);
+  border-top-color: var(--accent-cyan);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.badge-success {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.badge-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* ---------------- Toasts ---------------- */
+
+.toast-stack {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(360px, calc(100vw - 40px));
+}
+
+.toast {
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  color: var(--text-hi);
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  animation: toast-in 0.28s var(--ease);
+}
+
+.toast-error {
+  border-left: 3px solid var(--danger);
+}
+
+.toast-success {
+  border-left: 3px solid var(--success);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .toast-stack {
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
+}
