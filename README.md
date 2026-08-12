@@ -9,6 +9,15 @@ and the results come back as a styled dashboard.
 
 ---
 
+## For a team: use Docker
+
+If more than one person is running this, **use the Docker path below, not the
+manual one.** Docker pins the exact OS, Python, and Node versions inside the
+images, so everyone gets byte-for-byte the same environment regardless of
+what's installed on their laptop. The manual path is fine for solo quick
+edits, but "works on my machine" bugs almost always come from Python/Node
+version drift between contributors — Docker removes that variable entirely.
+
 ## Quick start (Docker)
 
 This is the fastest path to a fully working stack (Postgres + backend + frontend).
@@ -32,6 +41,13 @@ To stop: `docker compose down`. To wipe the database too: `docker compose down -
 ---
 
 ## Local development (without Docker)
+
+Use the same versions as CI/Docker so behavior matches across every
+contributor's machine: **Python 3.12** (pinned in `backend/.python-version`)
+and **Node 20** (pinned in `frontend-app/.nvmrc` / `package.json engines` —
+`npm install` will refuse to run on the wrong Node version). If you use
+`pyenv`/`nvm`, running `pyenv install` / `nvm use` in each folder picks up
+the pinned version automatically.
 
 ### Backend
 
