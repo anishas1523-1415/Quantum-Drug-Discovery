@@ -12,11 +12,12 @@ rather than re-paying that cost every time.
 import json
 import logging
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 
 from extensions import db, limiter
 from models import GenomicsCache, utcnow
 from services.quantum_ranking import QuantumRankingError, select_diverse_panel
+from services.report_generator import generate_pdf_report
 from services.scoring_engine import score_candidates
 from services.target_identification import GenomicsError, recommend_drugs
 from utils import error_response, token_required
@@ -85,31 +86,18 @@ def _run_pipeline(gene, cancer_type):
     }
 
 
-@analyze_bp.route("/analyze", methods=["GET"])
-@token_required
-@limiter.limit("20 per hour")
-def analyze():
-    gene = (request.args.get("gene") or "").strip()
-    cancer_type = (request.args.get("cancer_type") or "").strip()
-
-    if not gene:
-        return error_response("A 'gene' query parameter is required")
-
-    if not cancer_type:
-        return error_response("A 'cancer_type' query parameter is required")
+def _get_or_compute(gene, cancer_type):
+    """Cache-first pipeline result, shared by the JSON and PDF endpoints
+    so exporting a report never re-runs the (slow) live pipeline if a
+    fresh cached result already exists."""
 
     cache_key = f"analyze:v{CACHE_SCHEMA_VERSION}:{gene.upper()}:{cancer_type.lower()}"
     cached = GenomicsCache.query.filter_by(cache_key=cache_key).first()
 
     if cached and cached.is_fresh(CACHE_TTL_HOURS):
-        return jsonify(json.loads(cached.payload))
+        return json.loads(cached.payload)
 
-    try:
-        result = _run_pipeline(gene, cancer_type)
-    except GenomicsError as exc:
-        logger.warning("Pipeline failed for gene=%s: %s", gene, exc)
-        return error_response(str(exc), 502)
-
+    result = _run_pipeline(gene, cancer_type)
     payload_json = json.dumps(result)
 
     if cached:
@@ -121,4 +109,59 @@ def analyze():
 
     db.session.commit()
 
+    return result
+
+
+def _parse_gene_and_cancer_type():
+    gene = (request.args.get("gene") or "").strip()
+    cancer_type = (request.args.get("cancer_type") or "").strip()
+
+    if not gene:
+        return None, None, error_response("A 'gene' query parameter is required")
+
+    if not cancer_type:
+        return None, None, error_response("A 'cancer_type' query parameter is required")
+
+    return gene, cancer_type, None
+
+
+@analyze_bp.route("/analyze", methods=["GET"])
+@token_required
+@limiter.limit("20 per hour")
+def analyze():
+    gene, cancer_type, error = _parse_gene_and_cancer_type()
+    if error:
+        return error
+
+    try:
+        result = _get_or_compute(gene, cancer_type)
+    except GenomicsError as exc:
+        logger.warning("Pipeline failed for gene=%s: %s", gene, exc)
+        return error_response(str(exc), 502)
+
     return jsonify(result)
+
+
+@analyze_bp.route("/analyze/report", methods=["GET"])
+@token_required
+@limiter.limit("15 per hour")
+def analyze_report():
+    gene, cancer_type, error = _parse_gene_and_cancer_type()
+    if error:
+        return error
+
+    try:
+        result = _get_or_compute(gene, cancer_type)
+    except GenomicsError as exc:
+        logger.warning("Pipeline failed for gene=%s: %s", gene, exc)
+        return error_response(str(exc), 502)
+
+    pdf_bytes = generate_pdf_report(result, requested_by=request.user)
+
+    filename = f"qdd-report-{gene.upper()}-{cancer_type.lower()}.pdf"
+
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

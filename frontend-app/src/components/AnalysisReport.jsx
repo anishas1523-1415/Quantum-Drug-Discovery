@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import client, { extractErrorMessage } from "../api/client";
+import { useToast } from "../context/ToastContext";
 import { stageBadgeClass, stageLabel } from "../utils/drugStage";
 
 const COMPONENT_LABELS = {
@@ -28,8 +29,63 @@ function ComponentBar({ label, value }) {
   );
 }
 
+async function extractBlobErrorMessage(error) {
+  // With responseType: "blob", axios parses even an error's JSON body as
+  // an opaque Blob rather than a plain object, so the normal
+  // extractErrorMessage(error.response.data.message) sees nothing there
+  // and falls back to a generic/misleading message. Re-read the blob as
+  // text and parse it as JSON to recover the real server message.
+  const blob = error.response?.data;
+
+  if (blob instanceof Blob) {
+    try {
+      const text = await blob.text();
+      const parsed = JSON.parse(text);
+      if (parsed?.message) return parsed.message;
+    } catch {
+      // fall through to the generic extractor below
+    }
+  }
+
+  return extractErrorMessage(error);
+}
+
+function downloadBlob(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 export default function AnalysisReport({ gene, cancerType }) {
+  const toast = useToast();
   const [state, setState] = useState({ status: "loading" });
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  async function exportPdf() {
+    setExportingPdf(true);
+    try {
+      const response = await client.get("/analyze/report", {
+        params: { gene, cancer_type: cancerType },
+        responseType: "blob",
+      });
+      downloadBlob(response.data, `qdd-report-${gene}-${cancerType}.pdf`.toLowerCase());
+    } catch (error) {
+      toast.error(await extractBlobErrorMessage(error));
+    } finally {
+      setExportingPdf(false);
+    }
+  }
+
+  function exportJson() {
+    if (state.status !== "done") return;
+    const blob = new Blob([JSON.stringify(state.data, null, 2)], { type: "application/json" });
+    downloadBlob(blob, `qdd-report-${gene}-${cancerType}.json`.toLowerCase());
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -74,6 +130,15 @@ export default function AnalysisReport({ gene, cancerType }) {
     return (
       <div className="analysis-report">
         <div className="recommend-empty">{data.message}</div>
+        <div className="analysis-export-buttons">
+          <button type="button" className="btn btn-ghost export-btn" onClick={exportJson}>
+            Export JSON
+          </button>
+          <button type="button" className="btn btn-ghost export-btn" onClick={exportPdf} disabled={exportingPdf}>
+            {exportingPdf && <span className="spinner" />}
+            {exportingPdf ? "Generating..." : "Export PDF"}
+          </button>
+        </div>
       </div>
     );
   }
@@ -87,7 +152,18 @@ export default function AnalysisReport({ gene, cancerType }) {
           Full evidence-based analysis for <strong>{data.target_name || data.gene}</strong> in{" "}
           <strong>{data.cancer_type}</strong>
         </span>
-        <span className="recommend-source">{data.source}</span>
+        <div className="analysis-header-right">
+          <span className="recommend-source">{data.source}</span>
+          <div className="analysis-export-buttons">
+            <button type="button" className="btn btn-ghost export-btn" onClick={exportJson}>
+              Export JSON
+            </button>
+            <button type="button" className="btn btn-ghost export-btn" onClick={exportPdf} disabled={exportingPdf}>
+              {exportingPdf && <span className="spinner" />}
+              {exportingPdf ? "Generating..." : "Export PDF"}
+            </button>
+          </div>
+        </div>
       </div>
 
       {data.quantum_optimization && (
