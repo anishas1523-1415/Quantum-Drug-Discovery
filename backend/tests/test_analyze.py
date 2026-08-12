@@ -37,7 +37,7 @@ def auth_headers_for(client):
     return {"Authorization": f"Bearer {token}"}
 
 
-def fake_score_candidates(candidates):
+def fake_score_candidates(candidates, gene=None, cancer_type=None):
     return [
         {
             "drug_name": c["drug_name"], "chembl_id": c["chembl_id"], "drug_type": c["drug_type"],

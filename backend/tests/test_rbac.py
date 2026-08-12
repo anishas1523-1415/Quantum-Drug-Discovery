@@ -53,6 +53,26 @@ def test_demo_admin_account_is_seeded(client):
     assert response.get_json()["user"]["role"] == "admin"
 
 
+def test_seed_demo_users_false_skips_seeding(monkeypatch):
+    """SEED_DEMO_USERS=false is what a real deployment sets — verify it
+    actually prevents the seed call, not just that it's documented as
+    off. TESTING=False here specifically because TESTING always seeds
+    (see app.py) so a production-like config is needed to exercise the
+    flag at all."""
+    monkeypatch.setenv("SEED_DEMO_USERS", "false")
+
+    with patch("app.seed_demo_user") as mock_seed:
+        from app import create_app
+
+        create_app(test_config={
+            "TESTING": False,
+            "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+            "RATELIMIT_ENABLED": False,
+        })
+
+        mock_seed.assert_not_called()
+
+
 def test_audit_logs_endpoint_requires_auth(client):
     response = client.get("/api/admin/audit-logs")
     assert response.status_code == 401

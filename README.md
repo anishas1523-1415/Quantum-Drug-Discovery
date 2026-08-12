@@ -135,6 +135,7 @@ starts serving traffic (the Docker image's entrypoint does this automatically).
 | `FRONTEND_ORIGIN` | Allowed CORS origin | `http://localhost:5173` |
 | `FLASK_DEBUG` | Enables the Werkzeug debugger/reloader | `false` |
 | `LOG_LEVEL` | Python logging level | `INFO` |
+| `SEED_DEMO_USERS` | Seeds `doctor@gmail.com`/`admin@gmail.com` demo accounts on startup | `true` — **set to `false` in any real deployment** |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` | Outbound email for password resets | unset — reset emails are logged to stdout instead of sent |
 
 ### Frontend (`frontend-app/.env`, see `frontend-app/.env.example`)
@@ -163,6 +164,9 @@ wherever you land:
    "Data handling" below). You only need a volume for Postgres itself.
 3. **`SECRET_KEY`** as a real secret in your host's secret manager, not
    committed anywhere.
+4. **`SEED_DEMO_USERS=false`.** Without this, the app seeds
+   `doctor@gmail.com`/`password123` and `admin@gmail.com`/`adminpass123`
+   — publicly known credentials — against your real database.
 
 The backend serves via `waitress` (cross-platform, no `debug=True` Werkzeug
 server in the request path). Flask-Limiter's rate limiter currently uses

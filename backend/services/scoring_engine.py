@@ -17,8 +17,10 @@ of the same evidence chain.
 
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 from services.drug_target_interaction import DTIError, get_bioactivity
+from services.effectiveness_predictor import predict_effectiveness
 from services.molecular_properties import MolecularPropertiesError, get_molecular_properties
 from services.target_identification import STAGE_RANK
 from services.toxicity_admet import assess_admet_risk
@@ -27,11 +29,18 @@ logger = logging.getLogger("qdd.scoring_engine")
 
 MAX_STAGE_RANK = 6.0  # APPROVAL, see target_identification.STAGE_RANK
 
+# ml_effectiveness is the real, GDSC2-trained model's contribution (see
+# services/effectiveness_predictor.py). clinical_evidence keeps the
+# highest weight — real-world trial/approval evidence is a stronger
+# signal than a model trained on cell-line assays — but the genomic
+# -informed ML signal now carries real weight of its own rather than
+# being absent.
 WEIGHTS = {
-    "clinical_evidence": 0.40,
-    "dti_potency": 0.25,
-    "drug_likeness": 0.15,
-    "admet_safety": 0.20,
+    "clinical_evidence": 0.35,
+    "dti_potency": 0.20,
+    "drug_likeness": 0.10,
+    "admet_safety": 0.15,
+    "ml_effectiveness": 0.20,
 }
 
 RISK_BAND_SAFETY_SCORE = {
@@ -46,7 +55,7 @@ def _potency_score(pchembl_value):
     return max(0.0, min(1.0, (pchembl_value - 4.0) / 6.0))
 
 
-def _build_explanation(candidate, components, admet_result, dti_result, mol_result):
+def _build_explanation(candidate, components, admet_result, dti_result, mol_result, ml_result):
     parts = []
 
     if "clinical_evidence" in components:
@@ -67,13 +76,21 @@ def _build_explanation(candidate, components, admet_result, dti_result, mol_resu
         else:
             parts.append(f"{admet_result['risk_band'].lower()} structural risk band")
 
+    if ml_result and ml_result.get("applicable"):
+        parts.append(
+            f"ML model (GDSC2-trained, ROC-AUC {ml_result['model_cv_roc_auc']}): "
+            f"{ml_result['predicted_label'].lower()} ({ml_result['probability_sensitive']:.0%} probability)"
+        )
+
     return "; ".join(parts) if parts else "Limited real-world data available for this candidate."
 
 
-def score_candidate(candidate):
+def score_candidate(candidate, gene=None, cancer_type=None):
     """candidate: one entry from target_identification.recommend_drugs()'s
     matched_candidates list (drug_name, chembl_id, drug_type, stage,
-    matched_disease, description)."""
+    matched_disease, description). gene/cancer_type are the analysis
+    inputs — passed through so the ML effectiveness component can build
+    its feature vector."""
 
     components = {}
     evidence = {}
@@ -117,6 +134,11 @@ def score_candidate(candidate):
 
         evidence["admet"] = admet_result
 
+    ml_result = predict_effectiveness(gene, cancer_type, mol_result)
+    if ml_result.get("applicable"):
+        components["ml_effectiveness"] = ml_result["probability_sensitive"]
+    evidence["ml_effectiveness"] = ml_result
+
     available_weight = sum(WEIGHTS[k] for k in components)
 
     if available_weight > 0:
@@ -137,11 +159,11 @@ def score_candidate(candidate):
         "component_scores": {k: round(v, 3) for k, v in components.items()},
         "admet_risk_band": admet_result["risk_band"] if admet_result else "Unknown",
         "evidence": evidence,
-        "explanation": _build_explanation(candidate, components, admet_result, dti_result, mol_result),
+        "explanation": _build_explanation(candidate, components, admet_result, dti_result, mol_result, ml_result),
     }
 
 
-def score_candidates(candidates, max_workers=4):
+def score_candidates(candidates, gene=None, cancer_type=None, max_workers=4):
     """Score every candidate and return them ranked by composite score
     (highest first). Each candidate is scored independently — a failure
     enriching one candidate (e.g. a transient ChEMBL error) degrades
@@ -156,7 +178,7 @@ def score_candidates(candidates, max_workers=4):
         return []
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        scored = list(executor.map(score_candidate, candidates))
+        scored = list(executor.map(partial(score_candidate, gene=gene, cancer_type=cancer_type), candidates))
 
     scored.sort(key=lambda c: c["composite_score"], reverse=True)
     return scored

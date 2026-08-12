@@ -69,7 +69,17 @@ def create_app(test_config=None):
         if app.config.get("TESTING"):
             # Tests run against a throwaway DB with no migration history.
             db.create_all()
-        seed_demo_user()
+
+        # Demo accounts with published passwords have no place in a real
+        # deployment. Defaults to on (matches the Docker/local quick-start
+        # in the README) but must be set to "false" in production
+        # environment config (e.g. Render) so no publicly-known credential
+        # exists against a real, internet-reachable database.
+        seed_demo_users_enabled = os.environ.get("SEED_DEMO_USERS", "true").lower() == "true"
+        if app.config.get("TESTING") or seed_demo_users_enabled:
+            seed_demo_user()
+        else:
+            logging.getLogger("qdd.app").info("SEED_DEMO_USERS=false — skipping demo account seed")
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(data_bp)

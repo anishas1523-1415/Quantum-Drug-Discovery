@@ -28,7 +28,7 @@ logger = logging.getLogger("qdd.analyze")
 CACHE_TTL_HOURS = 24
 # Bump alongside changes to _run_pipeline()'s return shape — see the same
 # pattern (and the bug it prevents) in services/target_identification.py.
-CACHE_SCHEMA_VERSION = 1
+CACHE_SCHEMA_VERSION = 2
 # Capped for live API-call volume (2 ChEMBL calls per candidate) and to
 # stay comfortably inside quantum_ranking's fast-converging range.
 CANDIDATE_POOL_SIZE = 6
@@ -55,7 +55,7 @@ def _run_pipeline(gene, cancer_type):
             ),
         }
 
-    scored = score_candidates(top_candidates)
+    scored = score_candidates(top_candidates, gene=gene, cancer_type=cancer_type)
 
     quantum_input = [
         {"score": c["composite_score"] / 100.0, "drug_type": c["drug_type"]}

@@ -15,8 +15,8 @@ drug class, not missing data, and is reported as such.
 import logging
 
 import requests
-from rdkit import Chem
-from rdkit.Chem import Crippen, Descriptors, QED
+
+from services.molecular_descriptors import compute_descriptors
 
 logger = logging.getLogger("qdd.molecular_properties")
 
@@ -68,9 +68,9 @@ def get_molecular_properties(chembl_id):
             "qed": None,
         }
 
-    mol = Chem.MolFromSmiles(info["smiles"])
+    descriptors = compute_descriptors(info["smiles"])
 
-    if mol is None:
+    if descriptors is None:
         logger.warning("RDKit could not parse SMILES for %s", chembl_id)
         return {
             "chembl_id": chembl_id,
@@ -81,40 +81,22 @@ def get_molecular_properties(chembl_id):
             "qed": None,
         }
 
-    mw = Descriptors.MolWt(mol)
-    logp = Crippen.MolLogP(mol)
-    tpsa = Descriptors.TPSA(mol)
-    hbd = Descriptors.NumHDonors(mol)
-    hba = Descriptors.NumHAcceptors(mol)
-    rot_bonds = Descriptors.NumRotatableBonds(mol)
-
-    # Lipinski's Rule of Five: a well-established (1997), widely used
-    # heuristic for oral drug-likeness. Violating it doesn't mean a drug
-    # can't work (many real approved drugs violate one rule) — it's a
-    # screening signal, reported as a count of violations, not a verdict.
-    violations = sum([
-        mw > 500,
-        logp > 5,
-        hbd > 5,
-        hba > 10,
-    ])
-
     return {
         "chembl_id": chembl_id,
         "has_structure": True,
         "molecule_type": info["molecule_type"],
         "smiles": info["smiles"],
         "properties": {
-            "molecular_weight": round(mw, 2),
-            "logp": round(logp, 2),
-            "tpsa": round(tpsa, 2),
-            "h_bond_donors": hbd,
-            "h_bond_acceptors": hba,
-            "rotatable_bonds": rot_bonds,
+            "molecular_weight": descriptors["molecular_weight"],
+            "logp": descriptors["logp"],
+            "tpsa": descriptors["tpsa"],
+            "h_bond_donors": descriptors["h_bond_donors"],
+            "h_bond_acceptors": descriptors["h_bond_acceptors"],
+            "rotatable_bonds": descriptors["rotatable_bonds"],
         },
         "lipinski": {
-            "violations": violations,
-            "passes": violations <= 1,  # standard Ro5 allowance: <=1 violation
+            "violations": descriptors["lipinski_violations"],
+            "passes": descriptors["lipinski_violations"] <= 1,  # standard Ro5 allowance: <=1 violation
         },
-        "qed": round(QED.qed(mol), 3),
+        "qed": descriptors["qed"],
     }

@@ -8,6 +8,7 @@ const COMPONENT_LABELS = {
   dti_potency: "Target Potency",
   drug_likeness: "Drug-Likeness (QED)",
   admet_safety: "ADMET Safety",
+  ml_effectiveness: "ML Predicted Sensitivity",
 };
 
 function riskBadgeClass(band) {
@@ -198,6 +199,14 @@ export default function AnalysisReport({ gene, cancerType }) {
                 {c.evidence?.clinical_evidence?.stage && (
                   <span className={`badge ${stageBadgeClass(c.evidence.clinical_evidence.stage)}`}>
                     {stageLabel(c.evidence.clinical_evidence.stage)}
+                  </span>
+                )}
+                {c.evidence?.ml_effectiveness?.applicable && (
+                  <span
+                    className="badge badge-neutral"
+                    title={`GDSC2-trained model, cross-validated ROC-AUC ${c.evidence.ml_effectiveness.model_cv_roc_auc}. Trained on ${c.evidence.ml_effectiveness.trained_on}.`}
+                  >
+                    ML: {c.evidence.ml_effectiveness.predicted_label} ({Math.round(c.evidence.ml_effectiveness.probability_sensitive * 100)}%)
                   </span>
                 )}
               </div>
