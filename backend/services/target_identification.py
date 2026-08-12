@@ -1,3 +1,10 @@
+"""Real-time cancer target identification and drug-candidate generation.
+
+Queries the live Open Targets Platform GraphQL API. Every value returned
+by this module traces back to a real, current record — nothing here is
+computed, guessed, or backfilled from a static snapshot.
+"""
+
 import json
 import logging
 
@@ -6,12 +13,20 @@ import requests
 from extensions import db
 from models import GenomicsCache, utcnow
 
-logger = logging.getLogger("qdd.genomics")
+logger = logging.getLogger("qdd.target_identification")
 
 OPEN_TARGETS_URL = "https://api.platform.opentargets.org/api/v4/graphql"
 REQUEST_TIMEOUT = 10
 CACHE_TTL_HOURS = 24
 RESULT_LIMIT = 10
+
+# Bump this whenever the cached payload shape changes (new/renamed fields
+# in the candidate dict). Cache keys embed it so a schema change can't
+# silently serve old-shaped data to new code — it's a fresh cache miss
+# instead of a KeyError in production (this happened once during
+# development: chembl_id was added to candidates, and cached pre-change
+# entries broke the new code with no warning until a live request hit it).
+CACHE_SCHEMA_VERSION = 2
 
 # Open Targets reports clinical stage as free-text strings, not an enum.
 # Verified against live responses: approved drugs come back as "APPROVAL"
@@ -126,6 +141,7 @@ def _fetch_candidates_live(gene_symbol):
         ]
 
         candidates.append({
+            "chembl_id": drug["id"],
             "drug_name": drug["name"],
             "drug_type": drug["drugType"],
             "description": drug["description"],
@@ -144,7 +160,7 @@ def get_candidates_for_gene(gene_symbol):
     """Cache-first lookup of every drug directly targeting this gene."""
 
     gene_key = gene_symbol.strip().upper()
-    cache_key = f"target:{gene_key}"
+    cache_key = f"target:v{CACHE_SCHEMA_VERSION}:{gene_key}"
 
     cached = GenomicsCache.query.filter_by(cache_key=cache_key).first()
 
@@ -196,6 +212,7 @@ def recommend_drugs(gene_symbol, cancer_type):
 
         if best_hit:
             matched.append({
+                "chembl_id": candidate["chembl_id"],
                 "drug_name": candidate["drug_name"],
                 "drug_type": candidate["drug_type"],
                 "description": candidate["description"],

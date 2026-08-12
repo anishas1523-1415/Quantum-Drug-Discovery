@@ -1,9 +1,9 @@
 from unittest.mock import patch
 
-import genomics
-from genomics import GenomicsError, get_candidates_for_gene, recommend_drugs
+from services import target_identification
+from services.target_identification import GenomicsError, get_candidates_for_gene, recommend_drugs
 
-from .conftest import register_user
+from ..conftest import register_user
 
 FAKE_SEARCH_RESPONSE = {
     "search": {"hits": [{"id": "ENSG00000146648", "name": "EGFR", "entity": "target"}]}
@@ -79,7 +79,7 @@ def auth_headers_for(client):
     return {"Authorization": f"Bearer {token}"}
 
 
-@patch("genomics._graphql", side_effect=fake_graphql_egfr)
+@patch("services.target_identification._graphql", side_effect=fake_graphql_egfr)
 def test_recommend_drugs_ranks_by_clinical_stage(mock_graphql, app):
     with app.app_context():
         result = recommend_drugs("EGFR", "Lung")
@@ -91,7 +91,7 @@ def test_recommend_drugs_ranks_by_clinical_stage(mock_graphql, app):
     assert names_in_order == ["ERLOTINIB", "EXPERIMENTAL-EGFRI", "CROSS-APPROVED-DRUG"]
 
 
-@patch("genomics._graphql", side_effect=fake_graphql_egfr)
+@patch("services.target_identification._graphql", side_effect=fake_graphql_egfr)
 def test_recommend_drugs_filters_by_cancer_type(mock_graphql, app):
     with app.app_context():
         result = recommend_drugs("EGFR", "Breast")
@@ -101,7 +101,7 @@ def test_recommend_drugs_filters_by_cancer_type(mock_graphql, app):
     assert result["matched_candidates"][0]["drug_name"] == "EXPERIMENTAL-EGFRI"
 
 
-@patch("genomics._graphql", side_effect=fake_graphql_egfr)
+@patch("services.target_identification._graphql", side_effect=fake_graphql_egfr)
 def test_recommend_drugs_uses_disease_specific_stage_not_global_stage(mock_graphql, app):
     """Regression test: a drug approved for one cancer but only Phase 1
     for the requested one must rank/label by the Phase 1 status, not by
@@ -114,7 +114,7 @@ def test_recommend_drugs_uses_disease_specific_stage_not_global_stage(mock_graph
     assert cross_approved["matched_disease"] == "non-small cell lung carcinoma"
 
 
-@patch("genomics._graphql", side_effect=lambda query, variables=None: FAKE_EMPTY_SEARCH_RESPONSE)
+@patch("services.target_identification._graphql", side_effect=lambda query, variables=None: FAKE_EMPTY_SEARCH_RESPONSE)
 def test_recommend_drugs_gene_not_found_returns_empty_not_error(mock_graphql, app):
     with app.app_context():
         result = recommend_drugs("NOTAREALGENE", "Lung")
@@ -123,7 +123,7 @@ def test_recommend_drugs_gene_not_found_returns_empty_not_error(mock_graphql, ap
     assert result["matched_candidates"] == []
 
 
-@patch("genomics._graphql", side_effect=fake_graphql_egfr)
+@patch("services.target_identification._graphql", side_effect=fake_graphql_egfr)
 def test_get_candidates_for_gene_uses_cache_on_second_call(mock_graphql, app):
     with app.app_context():
         get_candidates_for_gene("EGFR")
@@ -155,13 +155,13 @@ def fake_graphql_many_matches(query, variables=None):
     return {"target": {"approvedSymbol": "EGFR", "drugAndClinicalCandidates": {"count": 15, "rows": rows}}}
 
 
-@patch("genomics._graphql", side_effect=fake_graphql_many_matches)
+@patch("services.target_identification._graphql", side_effect=fake_graphql_many_matches)
 def test_recommend_drugs_caps_results_at_limit(mock_graphql, app):
     with app.app_context():
         result = recommend_drugs("EGFR", "Lung")
 
     assert result["total_matches"] == 15
-    assert len(result["matched_candidates"]) == genomics.RESULT_LIMIT
+    assert len(result["matched_candidates"]) == target_identification.RESULT_LIMIT
     assert result["truncated"] is True
 
 
@@ -182,7 +182,7 @@ def test_recommend_endpoint_requires_cancer_type_param(client):
     assert response.status_code == 400
 
 
-@patch("genomics._graphql", side_effect=fake_graphql_egfr)
+@patch("services.target_identification._graphql", side_effect=fake_graphql_egfr)
 def test_recommend_endpoint_returns_ranked_results(mock_graphql, client):
     headers = auth_headers_for(client)
     response = client.get("/api/recommend?gene=EGFR&cancer_type=Lung", headers=headers)
@@ -193,7 +193,7 @@ def test_recommend_endpoint_returns_ranked_results(mock_graphql, client):
     assert len(data["matched_candidates"]) == 3
 
 
-@patch("genomics._graphql", side_effect=genomics.GenomicsError("upstream is down"))
+@patch("services.target_identification._graphql", side_effect=GenomicsError("upstream is down"))
 def test_recommend_endpoint_surfaces_upstream_failure_as_502(mock_graphql, client):
     headers = auth_headers_for(client)
     response = client.get("/api/recommend?gene=EGFR&cancer_type=Lung", headers=headers)

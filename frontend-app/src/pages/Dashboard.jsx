@@ -6,9 +6,14 @@ import DrugRecommendations from "../components/DrugRecommendations";
 import Pagination from "../components/Pagination";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { stageBadgeClass, stageLabel } from "../utils/drugStage";
 import "../styles/Dashboard.css";
 
 const PAGE_SIZE = 10;
+
+function recKey(gene, cancerType) {
+  return `${(gene || "").trim().toUpperCase()}::${(cancerType || "").trim().toLowerCase()}`;
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -21,6 +26,7 @@ export default function Dashboard() {
   const [hasRun, setHasRun] = useState(false);
   const [page, setPage] = useState(1);
   const [expandedPatientId, setExpandedPatientId] = useState(null);
+  const [recommendCache, setRecommendCache] = useState({});
 
   const quantumById = useMemo(() => {
     const map = new Map();
@@ -45,6 +51,45 @@ export default function Dashboard() {
     return prediction.slice(start, start + PAGE_SIZE);
   }, [prediction, page]);
 
+  async function fetchBestMatches(rows) {
+    const pairs = new Map();
+
+    rows.forEach((row) => {
+      if (row.GeneticMutation && row.CancerType) {
+        const key = recKey(row.GeneticMutation, row.CancerType);
+        if (!pairs.has(key)) {
+          pairs.set(key, { gene: row.GeneticMutation, cancerType: row.CancerType });
+        }
+      }
+    });
+
+    if (pairs.size === 0) return;
+
+    setRecommendCache((prev) => {
+      const next = { ...prev };
+      pairs.forEach((_, key) => {
+        next[key] = { status: "loading" };
+      });
+      return next;
+    });
+
+    await Promise.all(
+      Array.from(pairs.entries()).map(async ([key, { gene, cancerType }]) => {
+        try {
+          const response = await client.get("/recommend", {
+            params: { gene, cancer_type: cancerType },
+          });
+          setRecommendCache((prev) => ({ ...prev, [key]: { status: "done", data: response.data } }));
+        } catch (error) {
+          setRecommendCache((prev) => ({
+            ...prev,
+            [key]: { status: "error", message: extractErrorMessage(error) },
+          }));
+        }
+      })
+    );
+  }
+
   async function handleAnalyze() {
     if (!file) {
       toast.error("Choose a patient CSV file first");
@@ -61,12 +106,17 @@ export default function Dashboard() {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setPrediction(response.data.prediction || []);
+      const predictionRows = response.data.prediction || [];
+
+      setPrediction(predictionRows);
       setQuantumResult(response.data.quantum_result || []);
       setHasRun(true);
       setPage(1);
       setExpandedPatientId(null);
+      setRecommendCache({});
       toast.success(response.data.message || "Analysis complete");
+
+      fetchBestMatches(predictionRows);
     } catch (error) {
       toast.error(extractErrorMessage(error));
     } finally {
@@ -144,7 +194,7 @@ export default function Dashboard() {
                     <th>Cancer Type / Gene</th>
                     <th>Quantum Score</th>
                     <th>Drug Response Prediction</th>
-                    <th>Genomic Drug Match</th>
+                    <th>Best Drug Match</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -155,6 +205,9 @@ export default function Dashboard() {
                     const cancerType = row.CancerType;
                     const canRecommend = Boolean(gene && cancerType);
                     const isExpanded = expandedPatientId === row.PatientID;
+                    const rec = canRecommend ? recommendCache[recKey(gene, cancerType)] : null;
+                    const topMatch = rec?.data?.matched_candidates?.[0];
+                    const extraCount = rec?.data ? rec.data.total_matches - (topMatch ? 1 : 0) : 0;
 
                     return (
                       <Fragment key={row.PatientID || index}>
@@ -184,21 +237,58 @@ export default function Dashboard() {
                             </span>
                           </td>
                           <td>
-                            <button
-                              type="button"
-                              className="btn btn-ghost recommend-toggle"
-                              disabled={!canRecommend}
-                              onClick={() => setExpandedPatientId(isExpanded ? null : row.PatientID)}
-                              title={canRecommend ? undefined : "No gene mutation recorded for this patient"}
-                            >
-                              {isExpanded ? "Hide" : "Find Drugs"}
-                            </button>
+                            {!canRecommend ? (
+                              <span className="best-match-muted">No mutation recorded</span>
+                            ) : !rec || rec.status === "loading" ? (
+                              <span className="best-match-loading">
+                                <span className="spinner" /> Checking...
+                              </span>
+                            ) : rec.status === "error" ? (
+                              <span className="best-match-muted" title={rec.message}>
+                                Lookup failed
+                              </span>
+                            ) : !topMatch ? (
+                              <div className="best-match-cell">
+                                <span className="best-match-muted">No direct match</span>
+                                <button
+                                  type="button"
+                                  className="best-match-link"
+                                  onClick={() => setExpandedPatientId(isExpanded ? null : row.PatientID)}
+                                >
+                                  {isExpanded ? "Hide" : "Why?"}
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="best-match-cell">
+                                <div className="best-match-drug">
+                                  <span className="best-match-name">{topMatch.drug_name}</span>
+                                  <span className={`badge ${stageBadgeClass(topMatch.stage)}`}>
+                                    {stageLabel(topMatch.stage)}
+                                  </span>
+                                </div>
+                                {extraCount > 0 && (
+                                  <button
+                                    type="button"
+                                    className="best-match-link"
+                                    onClick={() => setExpandedPatientId(isExpanded ? null : row.PatientID)}
+                                  >
+                                    {isExpanded ? "Hide" : `+${extraCount} more`}
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </td>
                         </tr>
                         {isExpanded && (
                           <tr className="recommend-row">
                             <td colSpan={5}>
-                              <DrugRecommendations gene={gene} cancerType={cancerType} />
+                              <DrugRecommendations
+                                gene={gene}
+                                cancerType={cancerType}
+                                loading={rec?.status === "loading"}
+                                error={rec?.status === "error" ? rec.message : ""}
+                                result={rec?.data}
+                              />
                             </td>
                           </tr>
                         )}

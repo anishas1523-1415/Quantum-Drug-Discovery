@@ -54,3 +54,4 @@ urllib3==2.7.0
 idna==3.18
 charset-normalizer==3.4.9
 certifi==2026.7.22
+rdkit==2026.3.5

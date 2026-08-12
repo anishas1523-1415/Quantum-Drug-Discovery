@@ -7,6 +7,7 @@ from flask_cors import CORS
 
 load_dotenv()
 
+from analyze_routes import analyze_bp
 from auth import auth_bp
 from database import seed_demo_user
 from extensions import db, limiter, migrate
@@ -70,6 +71,7 @@ def create_app(test_config=None):
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(data_bp)
+    app.register_blueprint(analyze_bp)
 
     @app.errorhandler(404)
     def not_found(_error):

@@ -7,11 +7,11 @@ from flask import Blueprint, jsonify, request
 from werkzeug.utils import secure_filename
 
 from extensions import db, limiter
-from genomics import GenomicsError, recommend_drugs
 from models import AuditLog
 from predict import PredictionError, predict_drug
 from preprocessing import preprocess_data
 from quantum.quantum_model import QuantumProcessingError, quantum_process
+from services.target_identification import GenomicsError, recommend_drugs
 from utils import allowed_file, error_response, token_required
 
 data_bp = Blueprint("data", __name__, url_prefix="/api")
