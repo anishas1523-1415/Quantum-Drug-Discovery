@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from "react";
 import client, { extractErrorMessage } from "../api/client";
 import Navbar from "../components/Navbar";
 import Dropzone from "../components/Dropzone";
-import DrugRecommendations from "../components/DrugRecommendations";
+import AnalysisReport from "../components/AnalysisReport";
 import Pagination from "../components/Pagination";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -255,7 +255,7 @@ export default function Dashboard() {
                                   className="best-match-link"
                                   onClick={() => setExpandedPatientId(isExpanded ? null : row.PatientID)}
                                 >
-                                  {isExpanded ? "Hide" : "Why?"}
+                                  {isExpanded ? "Hide" : "Why? / Full report"}
                                 </button>
                               </div>
                             ) : (
@@ -266,15 +266,13 @@ export default function Dashboard() {
                                     {stageLabel(topMatch.stage)}
                                   </span>
                                 </div>
-                                {extraCount > 0 && (
-                                  <button
-                                    type="button"
-                                    className="best-match-link"
-                                    onClick={() => setExpandedPatientId(isExpanded ? null : row.PatientID)}
-                                  >
-                                    {isExpanded ? "Hide" : `+${extraCount} more`}
-                                  </button>
-                                )}
+                                <button
+                                  type="button"
+                                  className="best-match-link"
+                                  onClick={() => setExpandedPatientId(isExpanded ? null : row.PatientID)}
+                                >
+                                  {isExpanded ? "Hide" : extraCount > 0 ? `+${extraCount} more · Full report` : "Full report"}
+                                </button>
                               </div>
                             )}
                           </td>
@@ -282,13 +280,7 @@ export default function Dashboard() {
                         {isExpanded && (
                           <tr className="recommend-row">
                             <td colSpan={5}>
-                              <DrugRecommendations
-                                gene={gene}
-                                cancerType={cancerType}
-                                loading={rec?.status === "loading"}
-                                error={rec?.status === "error" ? rec.message : ""}
-                                result={rec?.data}
-                              />
+                              <AnalysisReport key={`${gene}::${cancerType}`} gene={gene} cancerType={cancerType} />
                             </td>
                           </tr>
                         )}
