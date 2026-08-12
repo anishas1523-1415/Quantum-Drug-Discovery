@@ -71,3 +71,21 @@ class AuditLog(db.Model):
     action = db.Column(db.String(64), nullable=False)
     detail = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class GenomicsCache(db.Model):
+    """Cache of live Open Targets lookups, keyed by gene symbol.
+
+    Avoids hitting the public API on every request; entries expire on
+    their own schedule rather than being tied to app restarts.
+    """
+
+    __tablename__ = "genomics_cache"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cache_key = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    payload = db.Column(db.Text, nullable=False)
+    fetched_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+    def is_fresh(self, ttl_hours):
+        return utcnow() - _as_aware_utc(self.fetched_at) < timedelta(hours=ttl_hours)

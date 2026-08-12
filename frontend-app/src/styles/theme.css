@@ -314,6 +314,16 @@ a.link:hover {
   color: var(--danger);
 }
 
+.badge-warning {
+  background: rgba(251, 191, 36, 0.14);
+  color: var(--warning);
+}
+
+.badge-neutral {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-mid);
+}
+
 /* ---------------- Toasts ---------------- */
 
 .toast-stack {

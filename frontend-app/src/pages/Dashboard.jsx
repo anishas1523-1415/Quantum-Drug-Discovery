@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import client, { extractErrorMessage } from "../api/client";
 import Navbar from "../components/Navbar";
 import Dropzone from "../components/Dropzone";
+import DrugRecommendations from "../components/DrugRecommendations";
 import Pagination from "../components/Pagination";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -19,6 +20,7 @@ export default function Dashboard() {
   const [quantumResult, setQuantumResult] = useState([]);
   const [hasRun, setHasRun] = useState(false);
   const [page, setPage] = useState(1);
+  const [expandedPatientId, setExpandedPatientId] = useState(null);
 
   const quantumById = useMemo(() => {
     const map = new Map();
@@ -63,6 +65,7 @@ export default function Dashboard() {
       setQuantumResult(response.data.quantum_result || []);
       setHasRun(true);
       setPage(1);
+      setExpandedPatientId(null);
       toast.success(response.data.message || "Analysis complete");
     } catch (error) {
       toast.error(extractErrorMessage(error));
@@ -138,36 +141,68 @@ export default function Dashboard() {
                 <thead>
                   <tr>
                     <th>Patient ID</th>
+                    <th>Cancer Type / Gene</th>
                     <th>Quantum Score</th>
                     <th>Drug Response Prediction</th>
+                    <th>Genomic Drug Match</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pagedPrediction.map((row, index) => {
                     const score = quantumById.get(String(row.PatientID));
                     const scorePct = score != null ? Math.min(100, Math.max(0, score * 100)) : null;
+                    const gene = row.GeneticMutation;
+                    const cancerType = row.CancerType;
+                    const canRecommend = Boolean(gene && cancerType);
+                    const isExpanded = expandedPatientId === row.PatientID;
 
                     return (
-                      <tr key={index}>
-                        <td>{row.PatientID}</td>
-                        <td>
-                          {score != null ? (
-                            <div className="score-bar-wrap">
-                              <span>{Number(score).toFixed(4)}</span>
-                              <div className="score-bar-track">
-                                <div className="score-bar-fill" style={{ width: `${scorePct}%` }} />
-                              </div>
+                      <Fragment key={row.PatientID || index}>
+                        <tr>
+                          <td>{row.PatientID}</td>
+                          <td>
+                            <div className="gene-cell">
+                              <span>{cancerType || "—"}</span>
+                              <span className="gene-tag">{gene || "no mutation recorded"}</span>
                             </div>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td>
-                          <span className={`badge ${row.Prediction === "Effective" ? "badge-success" : "badge-danger"}`}>
-                            {row.Prediction}
-                          </span>
-                        </td>
-                      </tr>
+                          </td>
+                          <td>
+                            {score != null ? (
+                              <div className="score-bar-wrap">
+                                <span>{Number(score).toFixed(4)}</span>
+                                <div className="score-bar-track">
+                                  <div className="score-bar-fill" style={{ width: `${scorePct}%` }} />
+                                </div>
+                              </div>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td>
+                            <span className={`badge ${row.Prediction === "Effective" ? "badge-success" : "badge-danger"}`}>
+                              {row.Prediction}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-ghost recommend-toggle"
+                              disabled={!canRecommend}
+                              onClick={() => setExpandedPatientId(isExpanded ? null : row.PatientID)}
+                              title={canRecommend ? undefined : "No gene mutation recorded for this patient"}
+                            >
+                              {isExpanded ? "Hide" : "Find Drugs"}
+                            </button>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="recommend-row">
+                            <td colSpan={5}>
+                              <DrugRecommendations gene={gene} cancerType={cancerType} />
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   })}
                 </tbody>

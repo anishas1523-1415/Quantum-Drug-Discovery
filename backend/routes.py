@@ -2,10 +2,12 @@ import logging
 import os
 import uuid
 
+import pandas as pd
 from flask import Blueprint, jsonify, request
 from werkzeug.utils import secure_filename
 
 from extensions import db, limiter
+from genomics import GenomicsError, recommend_drugs
 from models import AuditLog
 from predict import PredictionError, predict_drug
 from preprocessing import preprocess_data
@@ -77,6 +79,23 @@ def upload():
     file.save(filepath)
 
     try:
+        # CancerType/GeneticMutation get label-encoded to integers during
+        # preprocessing for the ML model's benefit. The frontend needs the
+        # original human-readable strings (to display them and to call
+        # /api/recommend), so capture them here before that happens.
+        raw_lookup = {}
+        try:
+            raw_df = pd.read_csv(filepath)
+            if "PatientID" in raw_df.columns:
+                for _, row in raw_df.iterrows():
+                    raw_lookup[str(row["PatientID"])] = {
+                        "CancerType": None if pd.isna(row.get("CancerType")) else row.get("CancerType"),
+                        "GeneticMutation": None if pd.isna(row.get("GeneticMutation")) else row.get("GeneticMutation"),
+                    }
+        except Exception:
+            logger.warning("Could not read raw CancerType/GeneticMutation values")
+            raw_lookup = {}
+
         try:
             df = preprocess_data(filepath)
         except Exception as exc:
@@ -109,6 +128,14 @@ def upload():
 
         prediction_preview = prediction_df.to_dict(orient="records")
 
+        for row in prediction_preview:
+            raw = raw_lookup.get(str(row.get("PatientID")))
+            if raw:
+                if "CancerType" in row:
+                    row["CancerType"] = raw["CancerType"]
+                if "GeneticMutation" in row:
+                    row["GeneticMutation"] = raw["GeneticMutation"]
+
         _log_audit("upload_success", f"{len(prediction_preview)} patients analyzed")
 
         return jsonify({
@@ -118,3 +145,30 @@ def upload():
         })
     finally:
         _cleanup(filepath, output_path)
+
+
+@data_bp.route("/recommend", methods=["GET"])
+@token_required
+@limiter.limit("60 per hour")
+def recommend():
+    gene = (request.args.get("gene") or "").strip()
+    cancer_type = (request.args.get("cancer_type") or "").strip()
+
+    if not gene:
+        return error_response("A 'gene' query parameter is required")
+
+    if not cancer_type:
+        return error_response("A 'cancer_type' query parameter is required")
+
+    try:
+        result = recommend_drugs(gene, cancer_type)
+    except GenomicsError as exc:
+        logger.warning("Genomics lookup failed for gene=%s: %s", gene, exc)
+        return error_response(str(exc), 502)
+
+    _log_audit(
+        "recommend",
+        f"gene={gene} cancer_type={cancer_type} matches={len(result['matched_candidates'])}",
+    )
+
+    return jsonify(result)

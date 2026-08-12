@@ -304,6 +304,130 @@ table.table-glass tbody tr:hover {
   background: var(--accent-gradient);
 }
 
+/* ---------------- Gene column + recommend panel ---------------- */
+
+.gene-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gene-tag {
+  display: inline-block;
+  width: fit-content;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--accent-cyan);
+  background: rgba(34, 211, 238, 0.1);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.recommend-toggle {
+  padding: 8px 14px;
+  font-size: 12.5px;
+}
+
+.recommend-row td {
+  padding: 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+.recommend-panel {
+  margin: 4px 0 14px;
+  padding: 18px 20px;
+  border-radius: var(--radius-md);
+  background: rgba(139, 92, 246, 0.06);
+  border: 1px solid rgba(139, 92, 246, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 13.5px;
+  color: var(--text-mid);
+  animation: toast-in 0.22s var(--ease);
+}
+
+.recommend-panel:has(.spinner) {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.recommend-error {
+  color: var(--danger);
+}
+
+.recommend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--text-hi);
+  font-size: 13.5px;
+}
+
+.recommend-source {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-cyan);
+}
+
+.recommend-empty {
+  line-height: 1.6;
+}
+
+.drug-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.drug-card {
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: 4px 4px 8px var(--neu-dark), -4px -4px 8px var(--neu-light);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drug-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.drug-name {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text-hi);
+}
+
+.drug-type {
+  font-size: 11.5px;
+  color: var(--text-low);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.drug-description {
+  font-size: 12.5px;
+  color: var(--text-mid);
+  line-height: 1.5;
+}
+
+.drug-evidence {
+  font-size: 11.5px;
+  color: var(--accent-cyan);
+  margin-top: 2px;
+}
+
 /* ---------------- Pagination ---------------- */
 
 .pagination {

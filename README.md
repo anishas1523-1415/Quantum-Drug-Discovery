@@ -2,10 +2,33 @@
 
 A precision-oncology console: doctors upload a patient dataset, the backend runs
 a Qiskit quantum feature analysis alongside a scikit-learn drug-response model,
-and the results come back as a styled dashboard.
+and per patient can pull a live, evidence-ranked list of real drugs targeting
+their recorded gene mutation for their cancer type.
 
 - **Backend**: Flask, SQLAlchemy + Alembic, JWT auth, Qiskit, scikit-learn
 - **Frontend**: React 19 + Vite, React Router, a glassmorphic/neumorphic UI
+
+---
+
+## Genomic drug recommendations (`/api/recommend`)
+
+Given a gene symbol and cancer type, `backend/genomics.py` queries the
+[Open Targets Platform](https://platform.opentargets.org/) GraphQL API live —
+nothing here is a static or fabricated dataset. It resolves the gene to a
+target ID, pulls every drug in clinical development or approved against that
+target, filters to the ones with documented evidence in the given cancer
+type, and ranks them by clinical stage (approved > phase 3 > ... ). Results
+are cached per gene in the `genomics_cache` table for 24h so repeat lookups
+are instant and don't hammer the public API.
+
+**This intentionally does not fabricate a result when there isn't one.**
+Tumor-suppressor genes like BRCA1/BRCA2 correctly come back with zero direct
+matches — they aren't drug targets themselves, the real clinical intervention
+(PARP inhibitors) works through a different target via synthetic lethality.
+The UI explains this rather than hiding it or inventing a fake match. If you
+want to extend this to also surface indirect/synthetic-lethality relationships,
+that needs a second, separate evidence source — it's not something the
+direct target→drug lookup can honestly produce.
 
 ---
 
