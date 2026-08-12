@@ -32,11 +32,25 @@ def client(app):
     return app.test_client()
 
 
-def register_user(client, name="Test Doctor", email="test@example.com", password="testpass123"):
-    return client.post(
-        "/api/auth/register",
-        json={"name": name, "email": email, "password": password},
-    )
+def register_user(client, name="Test Doctor", email="test@example.com", password="testpass123", role=None):
+    payload = {"name": name, "email": email, "password": password}
+    if role is not None:
+        payload["role"] = role
+    return client.post("/api/auth/register", json=payload)
+
+
+def login(client, email, password):
+    return client.post("/api/auth/login", json={"email": email, "password": password})
+
+
+def admin_auth_headers(client):
+    """The demo admin account is auto-seeded on every fresh test app (see
+    create_app -> seed_demo_user), same as the demo doctor — admins can't
+    self-register, so this is the realistic way tests get admin access."""
+
+    response = login(client, "admin@gmail.com", "adminpass123")
+    token = response.get_json()["token"]
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture()

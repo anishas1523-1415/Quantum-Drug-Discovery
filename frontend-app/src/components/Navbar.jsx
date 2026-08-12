@@ -1,3 +1,4 @@
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 function initials(name) {
@@ -11,6 +12,7 @@ function initials(name) {
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const location = useLocation();
 
   return (
     <header className="navbar glass-panel">
@@ -30,8 +32,19 @@ export default function Navbar() {
       </div>
 
       <div className="navbar-user">
+        {user?.role === "admin" && (
+          <Link
+            to={location.pathname === "/admin/audit-log" ? "/dashboard" : "/admin/audit-log"}
+            className="btn btn-ghost nav-admin-link"
+          >
+            {location.pathname === "/admin/audit-log" ? "Dashboard" : "Audit Log"}
+          </Link>
+        )}
         <div className="user-info">
-          <div className="user-name">{user?.name || "Doctor"}</div>
+          <div className="user-name">
+            {user?.name || "Doctor"}
+            {user?.role && user.role !== "doctor" && <span className="role-tag">{user.role}</span>}
+          </div>
           <div className="user-email">{user?.email}</div>
         </div>
         <div className="user-avatar">{initials(user?.name)}</div>

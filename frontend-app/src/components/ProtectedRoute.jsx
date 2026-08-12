@@ -2,8 +2,8 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import FullScreenLoader from "./FullScreenLoader";
 
-export default function ProtectedRoute({ children }) {
-  const { isAuthenticated, initializing } = useAuth();
+export default function ProtectedRoute({ children, requireRole }) {
+  const { isAuthenticated, initializing, user } = useAuth();
 
   if (initializing) {
     return <FullScreenLoader />;
@@ -11,6 +11,10 @@ export default function ProtectedRoute({ children }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (requireRole && user?.role !== requireRole) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

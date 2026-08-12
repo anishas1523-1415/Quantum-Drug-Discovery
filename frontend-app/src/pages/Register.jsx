@@ -14,6 +14,7 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState("doctor");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -49,7 +50,7 @@ export default function Register() {
     if (!validate()) return;
 
     setSubmitting(true);
-    const result = await register(name.trim(), email.trim(), password);
+    const result = await register(name.trim(), email.trim(), password, role);
     setSubmitting(false);
 
     if (result.ok) {
@@ -96,6 +97,26 @@ export default function Register() {
                   />
                 </div>
                 {errors.name && <div className="field-error">{errors.name}</div>}
+              </div>
+
+              <div className="neu-field">
+                <label htmlFor="role">Role</label>
+                <div className="role-picker">
+                  <button
+                    type="button"
+                    className={`role-option ${role === "doctor" ? "role-option-active" : ""}`}
+                    onClick={() => setRole("doctor")}
+                  >
+                    Doctor
+                  </button>
+                  <button
+                    type="button"
+                    className={`role-option ${role === "researcher" ? "role-option-active" : ""}`}
+                    onClick={() => setRole("researcher")}
+                  >
+                    Researcher
+                  </button>
+                </div>
               </div>
 
               <div className="neu-field">

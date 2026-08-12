@@ -53,7 +53,7 @@ describe("Register page", () => {
     expect(registerMock).not.toHaveBeenCalled();
   });
 
-  it("submits when all fields are valid", async () => {
+  it("submits with the doctor role by default", async () => {
     registerMock.mockResolvedValueOnce({ ok: true });
     renderRegister();
 
@@ -63,6 +63,20 @@ describe("Register page", () => {
     await userEvent.type(screen.getByPlaceholderText("Re-enter password"), "securepass1");
     await userEvent.click(screen.getByRole("button", { name: /create account/i }));
 
-    expect(registerMock).toHaveBeenCalledWith("Dr. Jane Smith", "jane@example.com", "securepass1");
+    expect(registerMock).toHaveBeenCalledWith("Dr. Jane Smith", "jane@example.com", "securepass1", "doctor");
+  });
+
+  it("submits with the researcher role when selected", async () => {
+    registerMock.mockResolvedValueOnce({ ok: true });
+    renderRegister();
+
+    await userEvent.type(screen.getByPlaceholderText("Dr. Jane Smith"), "Dr. Jane Smith");
+    await userEvent.type(screen.getByPlaceholderText("doctor@example.com"), "jane@example.com");
+    await userEvent.type(screen.getByPlaceholderText("At least 6 characters"), "securepass1");
+    await userEvent.type(screen.getByPlaceholderText("Re-enter password"), "securepass1");
+    await userEvent.click(screen.getByRole("button", { name: "Researcher" }));
+    await userEvent.click(screen.getByRole("button", { name: /create account/i }));
+
+    expect(registerMock).toHaveBeenCalledWith("Dr. Jane Smith", "jane@example.com", "securepass1", "researcher");
   });
 });

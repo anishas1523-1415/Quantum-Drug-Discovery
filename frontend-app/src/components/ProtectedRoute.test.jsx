@@ -27,6 +27,24 @@ function renderWithRoute() {
   );
 }
 
+function renderWithAdminRoute(initialEntry = "/admin") {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <Routes>
+        <Route path="/dashboard" element={<div>Regular Dashboard</div>} />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute requireRole="admin">
+              <div>Admin Panel</div>
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </MemoryRouter>
+  );
+}
+
 describe("ProtectedRoute", () => {
   it("redirects to /login when not authenticated", () => {
     useAuthMock.mockReturnValue({ isAuthenticated: false, initializing: false });
@@ -52,5 +70,30 @@ describe("ProtectedRoute", () => {
 
     expect(screen.queryByText("Secret Dashboard")).not.toBeInTheDocument();
     expect(screen.queryByText("Login Page")).not.toBeInTheDocument();
+  });
+
+  it("redirects a non-admin user away from an admin-only route", () => {
+    useAuthMock.mockReturnValue({
+      isAuthenticated: true,
+      initializing: false,
+      user: { role: "doctor" },
+    });
+
+    renderWithAdminRoute();
+
+    expect(screen.getByText("Regular Dashboard")).toBeInTheDocument();
+    expect(screen.queryByText("Admin Panel")).not.toBeInTheDocument();
+  });
+
+  it("allows an admin user onto an admin-only route", () => {
+    useAuthMock.mockReturnValue({
+      isAuthenticated: true,
+      initializing: false,
+      user: { role: "admin" },
+    });
+
+    renderWithAdminRoute();
+
+    expect(screen.getByText("Admin Panel")).toBeInTheDocument();
   });
 });

@@ -68,9 +68,9 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function register(name, email, password) {
+  async function register(name, email, password, role) {
     try {
-      const response = await client.post("/auth/register", { name, email, password });
+      const response = await client.post("/auth/register", { name, email, password, role });
       persistSession(response.data.token, response.data.user);
       return { ok: true };
     } catch (error) {

@@ -44,8 +44,29 @@ def token_required(f):
             "id": int(sub) if sub is not None else None,
             "email": payload.get("email"),
             "name": payload.get("name"),
+            "role": payload.get("role", "doctor"),
         }
 
         return f(*args, **kwargs)
 
     return decorated
+
+
+def role_required(*allowed_roles):
+    """Restrict an endpoint to specific roles. Must be applied inside
+    (i.e. below, since decorators apply bottom-up) @token_required, since
+    it reads request.user which token_required sets."""
+
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            role = getattr(request, "user", {}).get("role")
+
+            if role not in allowed_roles:
+                return error_response("You don't have permission to access this resource", 403)
+
+            return f(*args, **kwargs)
+
+        return decorated
+
+    return decorator

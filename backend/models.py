@@ -5,6 +5,14 @@ from extensions import db
 
 RESET_TOKEN_TTL_MINUTES = 30
 
+# "admin" is deliberately not in SELF_REGISTERABLE_ROLES — it can only be
+# granted via the `flask users promote` CLI command (see cli.py), never
+# through the public /api/auth/register endpoint. Letting anyone
+# self-register as admin would defeat the point of having the role.
+SELF_REGISTERABLE_ROLES = {"doctor", "researcher"}
+ALL_ROLES = SELF_REGISTERABLE_ROLES | {"admin"}
+DEFAULT_ROLE = "doctor"
+
 
 def utcnow():
     return datetime.now(timezone.utc)
@@ -25,6 +33,7 @@ class User(db.Model):
     name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default=DEFAULT_ROLE, server_default=DEFAULT_ROLE)
     created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 
     reset_token_hash = db.Column(db.String(64), nullable=True)
@@ -33,7 +42,7 @@ class User(db.Model):
     audit_logs = db.relationship("AuditLog", backref="user", lazy=True)
 
     def to_public_dict(self):
-        return {"id": self.id, "name": self.name, "email": self.email}
+        return {"id": self.id, "name": self.name, "email": self.email, "role": self.role}
 
     def issue_reset_token(self):
         raw_token = secrets.token_urlsafe(32)

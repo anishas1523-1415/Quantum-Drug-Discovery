@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request
 
 from email_utils import send_email
 from extensions import db, limiter
-from models import User
+from models import DEFAULT_ROLE, SELF_REGISTERABLE_ROLES, User
 from utils import SECRET_KEY, TOKEN_EXPIRY_HOURS, error_response, token_required
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -22,6 +22,7 @@ def issue_token(user):
         "sub": str(user.id),
         "email": user.email,
         "name": user.name,
+        "role": user.role,
         "iat": datetime.now(timezone.utc),
         "exp": datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRY_HOURS),
     }
@@ -36,6 +37,7 @@ def register():
     name = (data.get("name") or "").strip()
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
+    role = (data.get("role") or DEFAULT_ROLE).strip().lower()
 
     if not name or not email or not password:
         return error_response("Name, email and password are required")
@@ -46,10 +48,15 @@ def register():
     if len(password) < 6:
         return error_response("Password must be at least 6 characters")
 
+    if role not in SELF_REGISTERABLE_ROLES:
+        # Deliberately vague about *why* — doesn't confirm/deny that
+        # "admin" is a real role at all to an unauthenticated caller.
+        return error_response("Invalid role selection")
+
     if User.query.filter_by(email=email).first() is not None:
         return error_response("An account with this email already exists", 409)
 
-    user = User(name=name, email=email, password_hash=generate_password_hash(password))
+    user = User(name=name, email=email, password_hash=generate_password_hash(password), role=role)
     db.session.add(user)
     db.session.commit()
 

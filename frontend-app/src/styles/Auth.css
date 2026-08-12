@@ -133,6 +133,32 @@
   margin-top: -14px;
 }
 
+.role-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.role-option {
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--surface);
+  color: var(--text-mid);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow:
+    inset 3px 3px 6px var(--neu-dark),
+    inset -3px -3px 6px var(--neu-light);
+  transition: color 0.2s, box-shadow 0.2s;
+}
+
+.role-option-active {
+  color: var(--text-hi);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.5);
+}
+
 .forgot-link-row .link {
   font-size: 12.5px;
 }
