@@ -380,6 +380,12 @@ table.table-glass tbody tr:hover {
   line-height: 1.6;
 }
 
+.recommend-truncated-note {
+  font-size: 12px;
+  color: var(--text-low);
+  font-style: italic;
+}
+
 .drug-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

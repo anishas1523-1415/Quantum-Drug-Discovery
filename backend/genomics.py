@@ -11,6 +11,7 @@ logger = logging.getLogger("qdd.genomics")
 OPEN_TARGETS_URL = "https://api.platform.opentargets.org/api/v4/graphql"
 REQUEST_TIMEOUT = 10
 CACHE_TTL_HOURS = 24
+RESULT_LIMIT = 10
 
 # Open Targets reports clinical stage as free-text strings, not an enum.
 # Verified against live responses: approved drugs come back as "APPROVAL"
@@ -44,16 +45,17 @@ query($id: String!) {
     drugAndClinicalCandidates {
       count
       rows {
-        maxClinicalStage
         drug {
           id
           name
           drugType
           description
-        }
-        diseases {
-          diseaseFromSource
-          disease { id name }
+          indications {
+            rows {
+              maxClinicalStage
+              disease { id name }
+            }
+          }
         }
       }
     }
@@ -112,17 +114,22 @@ def _fetch_candidates_live(gene_symbol):
 
     candidates = []
     for row in target_data["drugAndClinicalCandidates"]["rows"]:
-        diseases = [
-            (d["disease"]["name"] if d["disease"] else d["diseaseFromSource"])
-            for d in row["diseases"]
+        drug = row["drug"]
+
+        # Disease-specific stage, not the drug's global "ever approved for
+        # anything" stage — a drug approved for one cancer can simultaneously
+        # be only Phase 2 for another. Ranking must use the former.
+        indications = [
+            {"disease": ind["disease"]["name"], "stage": ind["maxClinicalStage"]}
+            for ind in drug["indications"]["rows"]
+            if ind["disease"]
         ]
 
         candidates.append({
-            "drug_name": row["drug"]["name"],
-            "drug_type": row["drug"]["drugType"],
-            "description": row["drug"]["description"],
-            "stage": row["maxClinicalStage"],
-            "diseases": diseases,
+            "drug_name": drug["name"],
+            "drug_type": drug["drugType"],
+            "description": drug["description"],
+            "indications": indications,
         })
 
     return {
@@ -178,11 +185,28 @@ def recommend_drugs(gene_symbol, cancer_type):
 
     matched = []
     for candidate in result["candidates"]:
-        hit = next((d for d in candidate["diseases"] if cancer_term and cancer_term in d.lower()), None)
-        if hit:
-            matched.append({**candidate, "matched_disease": hit})
+        # Rank by this drug's stage FOR THIS CANCER SPECIFICALLY, not its
+        # best stage across every disease it's ever been trialed for — a
+        # drug approved for one cancer can be barely-tested for another.
+        best_hit = None
+        for indication in candidate["indications"]:
+            if cancer_term and cancer_term in indication["disease"].lower():
+                if best_hit is None or _stage_rank(indication["stage"]) > _stage_rank(best_hit["stage"]):
+                    best_hit = indication
+
+        if best_hit:
+            matched.append({
+                "drug_name": candidate["drug_name"],
+                "drug_type": candidate["drug_type"],
+                "description": candidate["description"],
+                "stage": best_hit["stage"],
+                "matched_disease": best_hit["disease"],
+            })
 
     matched.sort(key=lambda c: _stage_rank(c["stage"]), reverse=True)
+
+    total_matches = len(matched)
+    top_matches = matched[:RESULT_LIMIT]
 
     return {
         "gene": result["gene"],
@@ -190,6 +214,8 @@ def recommend_drugs(gene_symbol, cancer_type):
         "target_name": result["target_name"],
         "cancer_type": cancer_type,
         "total_direct_candidates": len(result["candidates"]),
-        "matched_candidates": matched,
-        "source": "Open Targets Platform (live)",
+        "total_matches": total_matches,
+        "matched_candidates": top_matches,
+        "truncated": total_matches > len(top_matches),
+        "source": "Open Targets Platform (live) — ranked by clinical stage specific to this cancer type",
     }

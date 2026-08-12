@@ -103,6 +103,13 @@ export default function DrugRecommendations({ gene, cancerType }) {
           through a different target via synthetic lethality, not by binding this gene.
         </div>
       ) : (
+        <>
+        {result.truncated && (
+          <div className="recommend-truncated-note">
+            Showing the top {matches.length} of {result.total_matches} matches with documented
+            evidence in {cancerType}, ranked by clinical stage specific to this cancer type.
+          </div>
+        )}
         <div className="drug-card-grid">
           {matches.map((drug, index) => (
             <div className="drug-card" key={index}>
@@ -116,6 +123,7 @@ export default function DrugRecommendations({ gene, cancerType }) {
             </div>
           ))}
         </div>
+        </>
       )}
     </div>
   );
