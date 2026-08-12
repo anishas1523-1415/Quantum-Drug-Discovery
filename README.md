@@ -67,7 +67,7 @@ To stop: `docker compose down`. To wipe the database too: `docker compose down -
 
 Use the same versions as CI/Docker so behavior matches across every
 contributor's machine: **Python 3.12** (pinned in `backend/.python-version`)
-and **Node 20** (pinned in `frontend-app/.nvmrc` / `package.json engines` —
+and **Node 22** (pinned in `frontend-app/.nvmrc` / `package.json engines` —
 `npm install` will refuse to run on the wrong Node version). If you use
 `pyenv`/`nvm`, running `pyenv install` / `nvm use` in each folder picks up
 the pinned version automatically.
